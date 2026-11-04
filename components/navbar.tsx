@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import { Bell, Search, Settings, User, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,10 +15,13 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/components/auth-provider"
 import Link from "next/link"
+import { OrbitMark } from "@/components/orbit-mark"
 
 export function Navbar() {
-  const [notifications] = useState(3)
-  const { userEmail, logout } = useAuth()
+  const { user, organisation, role, logout } = useAuth()
+  const displayName = String(user?.user_metadata?.full_name ?? user?.email ?? "Account")
+  const initials = displayName.split(/[\s@]+/).filter(Boolean).slice(0, 2).map(part => part[0]?.toUpperCase()).join("") || "U"
+  const roleName = role?.replaceAll("_", " ").replace(/\b\w/g, letter => letter.toUpperCase()) || "Member"
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -27,7 +29,11 @@ export function Navbar() {
         {/* Logo */}
         <div className="flex items-center space-x-2">
           
-          <span className="font-bold text-xl">PerformX</span>
+          <Link href="/" className="flex items-center gap-2" aria-label="ORBIT home">
+            <OrbitMark className="h-8 w-8" />
+            <span className="font-bold text-xl tracking-[0.12em]">ORBIT</span>
+            <span className="hidden lg:block text-xs text-muted-foreground border-l pl-2">{organisation?.name ?? "Workspace"}</span>
+          </Link>
         </div>
 
         {/* Search */}
@@ -41,16 +47,10 @@ export function Navbar() {
         {/* Right side */}
         <div className="flex items-center space-x-4">
           {/* Notifications */}
-          <Button variant="ghost" size="icon" className="relative">
+          <Button asChild variant="ghost" size="icon" className="relative" aria-label="Announcements">
+            <Link href="/announcements">
             <Bell className="h-5 w-5" />
-            {notifications > 0 && (
-              <Badge
-                variant="destructive"
-                className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
-              >
-                {notifications}
-              </Badge>
-            )}
+            </Link>
           </Button>
 
           {/* User Menu */}
@@ -58,18 +58,17 @@ export function Navbar() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                 <Avatar className="h-10 w-10">
-                  <AvatarImage src="/new-profile.png" alt="Cuthbert Magawa" />
-                  <AvatarFallback>CM</AvatarFallback>
+                  <AvatarFallback>{initials}</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56 floating-shadow" align="end" forceMount>
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">Cuthbert Magawa</p>
-                  <p className="text-xs leading-none text-muted-foreground">{userEmail}</p>
+                  <p className="text-sm font-medium leading-none">{displayName}</p>
+                  <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
                   <Badge variant="secondary" className="w-fit text-xs mt-1">
-                    Project Lead
+                    {roleName}
                   </Badge>
                 </div>
               </DropdownMenuLabel>
@@ -80,9 +79,11 @@ export function Navbar() {
                   <span>Profile</span>
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/profile">
                 <Settings className="mr-2 h-4 w-4" />
                 <span>Settings</span>
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={logout} className="text-red-600 focus:text-red-600">

@@ -1,265 +1,46 @@
 "use client"
 
+import { useCallback, useEffect, useState, type FormEvent } from "react"
+import { Award, Calendar, Mail, Save, ShieldCheck, Target, UserRound } from "lucide-react"
+import { toast } from "sonner"
 import { Layout } from "@/components/layout"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useAuth } from "@/components/auth-provider"
+import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+import { listWorkspaceRows } from "@/lib/workspace-data"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Mail, Phone, MapPin, Calendar, Award, Edit, Save } from "lucide-react"
 
-const userProfile = {
-  name: "Cuthbert Magawa",
-  email: "cuthbert.magawa@company.com",
-  phone: "+265 (0) 123-4567",
-  location: "Blantyre, Malawi",
-  department: "Project Lead",
-  joinDate: "2022-03-15",
-  avatar: "CM",
-  bio: "Experienced project leader with 8+ years in technology management. Passionate about driving innovation and building high-performing teams across Malawi's growing tech sector.",
-  skills: ["Project Management", "Team Leadership", "Strategic Planning", "Agile/Scrum", "Risk Management"],
-  performance: {
-    overall: 92,
-    tasksCompleted: 156,
-    tasksOnTime: 142,
-    teamSatisfaction: 4.8,
-  },
-}
+type Profile={id:string;display_name:string;job_title:string|null;phone:string|null}
+type StaffProfile={id:string;department_id:string|null;job_title:string;skills:string[]}
+type Task={id:string;title:string;status:string;due_date:string|null;completed_at:string|null;assignee_user_id:string|null}
+type Goal={id:string;title:string;current_value:number|null;target:number|null;status:string;owner_user_id:string|null}
+type Department={id:string;name:string}
 
-const recentTasks = [
-  { id: 1, title: "Q4 Strategic Planning", status: "Completed", dueDate: "2024-01-10", priority: "High" },
-  { id: 2, title: "Team Performance Review", status: "In Progress", dueDate: "2024-01-20", priority: "Medium" },
-  { id: 3, title: "Budget Allocation Meeting", status: "Pending", dueDate: "2024-01-25", priority: "High" },
-  { id: 4, title: "Department Restructure Plan", status: "In Progress", dueDate: "2024-02-01", priority: "Medium" },
-]
-
-const achievements = [
-  { title: "Project Excellence Award", date: "2023-12", description: "Outstanding leadership in Q4 initiatives" },
-  { title: "Team Builder", date: "2023-09", description: "Successfully onboarded 5 new team members" },
-  { title: "Innovation Champion", date: "2023-06", description: "Led implementation of new project management system" },
-]
-
-export function UserProfile() {
-  return (
-    <Layout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Profile</h1>
-          <p className="text-muted-foreground">Manage your personal information and view your performance metrics.</p>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-3">
-          {/* Profile Card */}
-          <Card className="md:col-span-1">
-            <CardHeader className="text-center">
-              <Avatar className="h-24 w-24 mx-auto">
-                <AvatarImage src="/new-profile.png" alt="Cuthbert Magawa" />
-                <AvatarFallback className="text-2xl">{userProfile.avatar}</AvatarFallback>
-              </Avatar>
-              <CardTitle className="text-xl">{userProfile.name}</CardTitle>
-              <CardDescription>
-                <Badge variant="secondary" className="mb-2">
-                  {userProfile.department}
-                </Badge>
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <span>{userProfile.email}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span>{userProfile.phone}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <span>{userProfile.location}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span>Joined {userProfile.joinDate}</span>
-                </div>
-              </div>
-
-              <Button className="w-full">
-                <Edit className="mr-2 h-4 w-4" />
-                Edit Profile
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Main Content */}
-          <div className="md:col-span-2 space-y-6">
-            {/* Performance Overview */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Award className="h-5 w-5" />
-                  Performance Overview
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold">{userProfile.performance.overall}%</div>
-                    <div className="text-sm text-muted-foreground">Overall Score</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold">{userProfile.performance.tasksCompleted}</div>
-                    <div className="text-sm text-muted-foreground">Tasks Completed</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold">91%</div>
-                    <div className="text-sm text-muted-foreground">On-Time Rate</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold">{userProfile.performance.teamSatisfaction}</div>
-                    <div className="text-sm text-muted-foreground">Team Rating</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Tabs */}
-            <Tabs defaultValue="tasks" className="space-y-4">
-              <TabsList>
-                <TabsTrigger value="tasks">My Tasks</TabsTrigger>
-                <TabsTrigger value="skills">Skills</TabsTrigger>
-                <TabsTrigger value="achievements">Achievements</TabsTrigger>
-                <TabsTrigger value="settings">Settings</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="tasks">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Recent Tasks</CardTitle>
-                    <CardDescription>Your latest task assignments and progress</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {recentTasks.map((task) => (
-                        <div key={task.id} className="flex items-center justify-between p-3 rounded-lg border">
-                          <div className="space-y-1">
-                            <p className="font-medium">{task.title}</p>
-                            <p className="text-sm text-muted-foreground">Due: {task.dueDate}</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant={task.priority === "High" ? "destructive" : "default"}>
-                              {task.priority}
-                            </Badge>
-                            <Badge
-                              variant={
-                                task.status === "Completed"
-                                  ? "default"
-                                  : task.status === "In Progress"
-                                    ? "secondary"
-                                    : "outline"
-                              }
-                            >
-                              {task.status}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="skills">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Skills & Expertise</CardTitle>
-                    <CardDescription>Your professional skills and competencies</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {userProfile.skills.map((skill, index) => (
-                        <div key={index} className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium">{skill}</span>
-                            <span className="text-sm text-muted-foreground">
-                              {85 + Math.floor(Math.random() * 15)}%
-                            </span>
-                          </div>
-                          <Progress value={85 + Math.floor(Math.random() * 15)} className="h-2" />
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="achievements">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Achievements & Recognition</CardTitle>
-                    <CardDescription>Your accomplishments and awards</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {achievements.map((achievement, index) => (
-                        <div key={index} className="flex items-start gap-3 p-3 rounded-lg border">
-                          <Award className="h-5 w-5 text-yellow-600 mt-0.5" />
-                          <div className="space-y-1">
-                            <p className="font-medium">{achievement.title}</p>
-                            <p className="text-sm text-muted-foreground">{achievement.description}</p>
-                            <p className="text-xs text-muted-foreground">{achievement.date}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="settings">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Profile Settings</CardTitle>
-                    <CardDescription>Update your personal information</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="firstName">First Name</Label>
-                        <Input id="firstName" defaultValue="Cuthbert" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="lastName">Last Name</Label>
-                        <Input id="lastName" defaultValue="Magawa" />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
-                      <Input id="email" type="email" defaultValue={userProfile.email} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">Phone</Label>
-                      <Input id="phone" defaultValue={userProfile.phone} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="bio">Bio</Label>
-                      <Textarea id="bio" defaultValue={userProfile.bio} />
-                    </div>
-                    <Button>
-                      <Save className="mr-2 h-4 w-4" />
-                      Save Changes
-                    </Button>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
-          </div>
-        </div>
-      </div>
-    </Layout>
-  )
+export function UserProfile(){
+  const {user,organisation,role}=useAuth()
+  const [profile,setProfile]=useState<Profile|null>(null)
+  const [staffProfile,setStaffProfile]=useState<StaffProfile|null>(null)
+  const [tasks,setTasks]=useState<Task[]>([])
+  const [goals,setGoals]=useState<Goal[]>([])
+  const [departments,setDepartments]=useState<Department[]>([])
+  const [loading,setLoading]=useState(true)
+  const [saving,setSaving]=useState(false)
+  const [password,setPassword]=useState("")
+  const refresh=useCallback(async()=>{if(!user||!organisation)return;const supabase=getSupabaseBrowserClient();if(!supabase)return;const [p,sp,t,g,d]=await Promise.all([supabase.from("user_profiles").select("id,display_name,job_title,phone").eq("id",user.id).maybeSingle(),supabase.from("staff_profiles").select("id,department_id,job_title,skills").eq("organisation_id",organisation.id).eq("user_id",user.id).maybeSingle(),listWorkspaceRows<Task>("tasks",organisation.id),listWorkspaceRows<Goal>("goals",organisation.id),listWorkspaceRows<Department>("departments",organisation.id,false)]);setProfile(p.data as Profile|null);setStaffProfile(sp.data as StaffProfile|null);setTasks(t.rows.filter(task=>task.assignee_user_id===user.id));setGoals(g.rows.filter(goal=>goal.owner_user_id===user.id));setDepartments(d.rows);setLoading(false);if(p.error||sp.error||t.error||g.error||d.error)toast.error(p.error?.message||sp.error?.message||t.error||g.error||d.error||"Could not load profile")},[user,organisation])
+  useEffect(()=>{void refresh()},[refresh])
+  async function save(event:FormEvent<HTMLFormElement>){event.preventDefault();if(!user||!organisation)return;const supabase=getSupabaseBrowserClient();if(!supabase)return;const form=new FormData(event.currentTarget);const displayName=String(form.get("display_name")??"").trim();const jobTitle=String(form.get("job_title")??"").trim();const phone=String(form.get("phone")??"").trim();const skills=String(form.get("skills")??"").split(",").map(value=>value.trim()).filter(Boolean);setSaving(true);try{const {error}=await supabase.from("user_profiles").update({display_name:displayName,job_title:jobTitle,phone}).eq("id",user.id);if(error)throw error;if(staffProfile){const {error:staffError}=await supabase.from("staff_profiles").update({display_name:displayName,job_title:jobTitle,skills}).eq("organisation_id",organisation.id).eq("id",staffProfile.id);if(staffError)throw staffError}const {error:authError}=await supabase.auth.updateUser({data:{full_name:displayName}});if(authError)throw authError;toast.success("Profile saved");await refresh()}catch(error){toast.error(error instanceof Error?error.message:"Could not save profile")}finally{setSaving(false)}}
+  async function changePassword(event:FormEvent<HTMLFormElement>){event.preventDefault();const supabase=getSupabaseBrowserClient();if(!supabase)return;try{const {error}=await supabase.auth.updateUser({password});if(error)throw error;setPassword("");toast.success("Password updated")}catch(error){toast.error(error instanceof Error?error.message:"Could not update password")}}
+  const name=profile?.display_name||String(user?.user_metadata?.full_name??"")||user?.email||"Account"
+  const initials=name.split(/\s+/).filter(Boolean).slice(0,2).map(word=>word[0]?.toUpperCase()).join("")||"U"
+  const currentDepartment=departments.find(department=>department.id===staffProfile?.department_id)?.name
+  const completed=tasks.filter(task=>task.status==="done").length
+  const completedWithDeadline=tasks.filter(task=>task.status==="done"&&task.due_date&&task.completed_at)
+  const onTime=completedWithDeadline.filter(task=>new Date(task.completed_at!)<=new Date(`${task.due_date}T23:59:59`)).length
+  const onTimeRate=completedWithDeadline.length?Math.round(onTime/completedWithDeadline.length*100):null
+  return <Layout><div className="space-y-6"><div><p className="text-sm font-medium text-cyan-700">Account</p><h1 className="text-3xl font-bold tracking-tight">Profile</h1><p className="text-muted-foreground">Your account details and recorded responsibilities in {organisation?.name??"this workspace"}.</p></div>{loading?<p className="text-sm text-muted-foreground">Loading profile…</p>:<div className="grid gap-6 lg:grid-cols-3"><Card><CardHeader className="items-center text-center"><div className="flex h-20 w-20 items-center justify-center rounded-full bg-cyan-100 text-2xl font-semibold text-cyan-900">{initials}</div><CardTitle>{name}</CardTitle><CardDescription>{currentDepartment??staffProfile?.job_title??"Workspace member"}</CardDescription><span className="mt-1 inline-flex items-center gap-1 rounded-full bg-muted px-2 py-1 text-xs capitalize"><ShieldCheck className="h-3 w-3"/>{role?.replaceAll("_"," ")??"Member"}</span></CardHeader><CardContent className="space-y-3 text-sm"><p className="flex items-center gap-2 text-muted-foreground"><Mail className="h-4 w-4"/>{user?.email}</p>{profile?.phone&&<p className="flex items-center gap-2 text-muted-foreground"><UserRound className="h-4 w-4"/>{profile.phone}</p>}<p className="flex items-center gap-2 text-muted-foreground"><Calendar className="h-4 w-4"/>Joined {user?.created_at?new Date(user.created_at).toLocaleDateString():"—"}</p></CardContent></Card>
+    <div className="space-y-6 lg:col-span-2"><Card><CardHeader><CardTitle>Edit profile</CardTitle><CardDescription>Update the details used in your organisation’s staff records.</CardDescription></CardHeader><CardContent><form onSubmit={save} className="space-y-4"><div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="profile-name">Full name</Label><Input id="profile-name" name="display_name" required maxLength={160} defaultValue={profile?.display_name??String(user?.user_metadata?.full_name??"")}/></div><div className="space-y-2"><Label htmlFor="profile-title">Job title</Label><Input id="profile-title" name="job_title" maxLength={160} defaultValue={profile?.job_title??staffProfile?.job_title??""}/></div><div className="space-y-2"><Label htmlFor="profile-email">Email</Label><Input id="profile-email" value={user?.email??""} disabled/></div><div className="space-y-2"><Label htmlFor="profile-phone">Phone</Label><Input id="profile-phone" name="phone" type="tel" defaultValue={profile?.phone??""}/></div></div><div className="space-y-2"><Label htmlFor="profile-skills">Skills and competencies</Label><Input id="profile-skills" name="skills" placeholder="Separate skills with commas" defaultValue={staffProfile?.skills?.join(", ")??""}/></div><Button type="submit" disabled={saving}><Save className="mr-2 h-4 w-4"/>{saving?"Saving…":"Save profile"}</Button></form></CardContent></Card>
+      <Card><CardHeader><CardTitle>Password</CardTitle><CardDescription>Choose a new password for your account.</CardDescription></CardHeader><CardContent><form onSubmit={changePassword} className="flex flex-wrap items-end gap-3"><div className="min-w-60 flex-1 space-y-2"><Label htmlFor="new-profile-password">New password</Label><Input id="new-profile-password" type="password" autoComplete="new-password" minLength={8} required value={password} onChange={event=>setPassword(event.target.value)}/></div><Button type="submit">Update password</Button></form></CardContent></Card>
+      <Card><CardHeader><CardTitle className="flex items-center gap-2"><Award className="h-5 w-5"/>Recorded performance</CardTitle><CardDescription>Counts based on tasks assigned to your account and goals you own.</CardDescription></CardHeader><CardContent><div className="grid gap-4 sm:grid-cols-3"><div><p className="text-2xl font-bold">{tasks.length}</p><p className="text-sm text-muted-foreground">Assigned tasks</p></div><div><p className="text-2xl font-bold">{completed}</p><p className="text-sm text-muted-foreground">Completed tasks</p></div><div><p className="text-2xl font-bold">{onTimeRate===null?"—":`${onTimeRate}%`}</p><p className="text-sm text-muted-foreground">On-time completion rate ({completedWithDeadline.length} tasks with both dates)</p></div></div><div className="mt-4 border-t pt-4"><p className="mb-2 flex items-center gap-2 font-medium"><Target className="h-4 w-4"/>Owned goals</p>{goals.length===0?<p className="text-sm text-muted-foreground">No individual goals are linked to your account yet.</p>:goals.map(goal=><div key={goal.id} className="flex justify-between gap-3 py-2 text-sm"><span>{goal.title}</span><span className="text-muted-foreground">{goal.current_value??0}{goal.target!==null?` / ${goal.target}`:""} · {goal.status.replaceAll("_"," ")}</span></div>)}</div></CardContent></Card></div></div>}</div></Layout>
 }

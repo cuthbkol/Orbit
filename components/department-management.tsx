@@ -1,250 +1,49 @@
 "use client"
 
+import { useCallback, useEffect, useState, type FormEvent } from "react"
+import { Archive, Building2, Plus, Users } from "lucide-react"
+import { toast } from "sonner"
 import { Layout } from "@/components/layout"
+import { useAuth } from "@/components/auth-provider"
+import { insertWorkspaceRow, listWorkspaceRows, updateWorkspaceRow } from "@/lib/workspace-data"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Building2, Users, CheckCircle, Clock, TrendingUp, Target } from "lucide-react"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 
-const departments = [
-  {
-    id: 1,
-    name: "Business Development",
-    description: "Driving growth through strategic partnerships and market expansion",
-    head: { name: "Thandiwe Banda", avatar: "TB", email: "thandiwe.banda@company.com" },
-    members: 8,
-    activeTasks: 12,
-    completedTasks: 34,
-    performance: 78,
-    goals: [
-      { name: "Q1 Revenue Target", progress: 85, target: "MWK 200M" },
-      { name: "New Client Acquisition", progress: 60, target: "15 clients" },
-    ],
-    recentActivity: [
-      "Completed Q4 marketing campaign strategy",
-      "Signed partnership agreement with TechCorp Malawi",
-      "Launched new product demo series",
-    ],
-  },
-  {
-    id: 2,
-    name: "Systems Development",
-    description: "Building and maintaining robust technical infrastructure",
-    head: { name: "Chisomo Phiri", avatar: "CP", email: "chisomo.phiri@company.com" },
-    members: 12,
-    activeTasks: 18,
-    completedTasks: 52,
-    performance: 85,
-    goals: [
-      { name: "System Migration", progress: 90, target: "100%" },
-      { name: "Performance Optimization", progress: 75, target: "50ms response" },
-    ],
-    recentActivity: [
-      "Completed database migration to PostgreSQL",
-      "Deployed new API endpoints",
-      "Fixed critical security vulnerabilities",
-    ],
-  },
-  {
-    id: 3,
-    name: "Communications",
-    description: "Managing internal and external communications strategy",
-    head: { name: "Mphatso Kachingwe", avatar: "MK", email: "mphatso.kachingwe@company.com" },
-    members: 6,
-    activeTasks: 9,
-    completedTasks: 28,
-    performance: 92,
-    goals: [
-      { name: "Brand Awareness", progress: 88, target: "10K followers" },
-      { name: "Content Production", progress: 95, target: "50 articles" },
-    ],
-    recentActivity: [
-      "Published quarterly company newsletter",
-      "Launched social media campaign",
-      "Updated brand guidelines",
-    ],
-  },
-  {
-    id: 4,
-    name: "Procurement",
-    description: "Managing vendor relationships and supply chain operations",
-    head: { name: "Kondwani Nyirenda", avatar: "KN", email: "kondwani.nyirenda@company.com" },
-    members: 4,
-    activeTasks: 7,
-    completedTasks: 19,
-    performance: 68,
-    goals: [
-      { name: "Cost Reduction", progress: 45, target: "15%" },
-      { name: "Vendor Optimization", progress: 70, target: "5 vendors" },
-    ],
-    recentActivity: [
-      "Negotiated new supplier contracts",
-      "Completed office asset inventory",
-      "Implemented new procurement software",
-    ],
-  },
-  {
-    id: 5,
-    name: "HR & Finance",
-    description: "Supporting employee development and financial operations",
-    head: { name: "Grace Mwale", avatar: "GM", email: "grace.mwale@company.com" },
-    members: 5,
-    activeTasks: 11,
-    completedTasks: 23,
-    performance: 74,
-    goals: [
-      { name: "Employee Satisfaction", progress: 82, target: "90%" },
-      { name: "Budget Compliance", progress: 95, target: "100%" },
-    ],
-    recentActivity: [
-      "Completed annual performance reviews",
-      "Launched employee wellness program",
-      "Updated financial reporting system",
-    ],
-  },
-]
+type Department = { id: string; name: string; description: string; head_user_id: string | null; status: string }
+type Staff = { id: string; user_id: string | null; department_id: string | null; display_name: string }
+type Task = { id: string; department_id: string | null; status: string }
 
 export function DepartmentManagement() {
-  const totalMembers = departments.reduce((sum, dept) => sum + dept.members, 0)
-  const totalActiveTasks = departments.reduce((sum, dept) => sum + dept.activeTasks, 0)
-  const totalCompletedTasks = departments.reduce((sum, dept) => sum + dept.completedTasks, 0)
-  const avgPerformance = Math.round(departments.reduce((sum, dept) => sum + dept.performance, 0) / departments.length)
+  const { organisation, role } = useAuth()
+  const canManage=["org_admin","manager","department_head"].includes(role??"")
+  const [departments, setDepartments] = useState<Department[]>([])
+  const [staff, setStaff] = useState<Staff[]>([])
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [editing, setEditing] = useState<Department | null>(null)
+  const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const refresh = useCallback(async () => {
+    if (!organisation) return
+    const [d,s,t] = await Promise.all([
+      listWorkspaceRows<Department>("departments", organisation.id, false),
+      listWorkspaceRows<Staff>("staff_profiles", organisation.id, false),
+      listWorkspaceRows<Task>("tasks", organisation.id),
+    ])
+    setDepartments(d.rows.filter(row=>row.status!=="archived")); setStaff(s.rows); setTasks(t.rows); setLoading(false)
+    if(d.error||s.error||t.error) toast.error(d.error||s.error||t.error||"Could not load departments")
+  },[organisation])
+  useEffect(()=>{void refresh()},[refresh])
 
-  return (
-    <Layout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Department Management</h1>
-          <p className="text-muted-foreground">Overview of all departments, their performance, and key metrics.</p>
-        </div>
+  async function save(event:FormEvent<HTMLFormElement>){event.preventDefault();if(!organisation)return;const form=new FormData(event.currentTarget);const headUser=String(form.get("head_user_id")??"");const values={name:String(form.get("name")??"").trim(),description:String(form.get("description")??"").trim(),head_user_id:headUser&&headUser!=="none"?headUser:null,status:"active"};if(!values.name)return;try{if(editing)await updateWorkspaceRow("departments",organisation.id,editing.id,values);else await insertWorkspaceRow("departments",organisation.id,values);toast.success(editing?"Department updated":"Department created");setOpen(false);setEditing(null);await refresh()}catch(error){toast.error(error instanceof Error?error.message:"Could not save department")}}
+  async function archive(department:Department){if(!organisation||!window.confirm(`Archive “${department.name}”?`))return;try{await updateWorkspaceRow("departments",organisation.id,department.id,{status:"archived"});toast.success("Department archived");await refresh()}catch(error){toast.error(error instanceof Error?error.message:"Could not archive department")}}
+  function startEdit(department:Department){setEditing(department);setOpen(true)}
+  function startCreate(){setEditing(null)}
 
-        {/* Overview Stats */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Departments</CardTitle>
-              <Building2 className="h-6 w-6 text-muted-foreground" strokeWidth={2.5} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{departments.length}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Members</CardTitle>
-              <Users className="h-6 w-6 text-muted-foreground" strokeWidth={2.5} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalMembers}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Tasks</CardTitle>
-              <Clock className="h-6 w-6 text-blue-600" strokeWidth={2.5} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalActiveTasks}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Avg Performance</CardTitle>
-              <TrendingUp className="h-6 w-6 text-green-600" strokeWidth={2.5} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{avgPerformance}%</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Department Cards */}
-        <div className="grid gap-6 md:grid-cols-2">
-          {departments.map((department) => (
-            <Card key={department.id} className="hover:shadow-md transition-shadow">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="space-y-2">
-                    <CardTitle className="flex items-center gap-2">
-                      <Building2 className="h-5 w-5" />
-                      {department.name}
-                    </CardTitle>
-                    <CardDescription>{department.description}</CardDescription>
-                  </div>
-                  <Badge variant="outline" className="ml-2">
-                    {department.performance}% Performance
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Department Head */}
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={`/placeholder.svg?height=40&width=40`} />
-                    <AvatarFallback>{department.head.avatar}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-medium">{department.head.name}</p>
-                    <p className="text-sm text-muted-foreground">Department Head</p>
-                  </div>
-                </div>
-
-                {/* Stats */}
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div>
-                    <div className="text-2xl font-bold">{department.members}</div>
-                    <div className="text-xs text-muted-foreground">Members</div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold">{department.activeTasks}</div>
-                    <div className="text-xs text-muted-foreground">Active Tasks</div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold">{department.completedTasks}</div>
-                    <div className="text-xs text-muted-foreground">Completed</div>
-                  </div>
-                </div>
-
-                {/* Goals */}
-                <div className="space-y-3">
-                  <h4 className="text-sm font-medium flex items-center gap-2">
-                    <Target className="h-4 w-4" />
-                    Department Goals
-                  </h4>
-                  {department.goals.map((goal, index) => (
-                    <div key={index} className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span>{goal.name}</span>
-                        <span className="text-muted-foreground">{goal.progress}%</span>
-                      </div>
-                      <Progress value={goal.progress} className="h-2" />
-                      <p className="text-xs text-muted-foreground">Target: {goal.target}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Recent Activity */}
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium">Recent Activity</h4>
-                  <div className="space-y-1">
-                    {department.recentActivity.map((activity, index) => (
-                      <div key={index} className="flex items-center gap-2 text-sm">
-                        <CheckCircle className="h-3 w-3 text-green-600 flex-shrink-0" />
-                        <span className="text-muted-foreground">{activity}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    </Layout>
-  )
+  return <Layout><div className="space-y-6"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-sm font-medium text-cyan-700">Organisation</p><h1 className="text-3xl font-bold tracking-tight">Departments</h1><p className="text-muted-foreground">Organise staff and task activity into clear reporting structures.</p></div>{canManage&&<Dialog open={open} onOpenChange={value=>{setOpen(value);if(!value)setEditing(null)}}><DialogTrigger asChild><Button onClick={startCreate}><Plus className="mr-2 h-4 w-4"/>Add department</Button></DialogTrigger><DialogContent><form onSubmit={save} className="space-y-4"><DialogHeader><DialogTitle>{editing?"Edit department":"New department"}</DialogTitle><DialogDescription>Department records are scoped to your organisation.</DialogDescription></DialogHeader><div className="space-y-2"><Label htmlFor="department-name">Name</Label><Input id="department-name" name="name" required maxLength={160} defaultValue={editing?.name}/></div><div className="space-y-2"><Label htmlFor="department-description">Description</Label><Textarea id="department-description" name="description" defaultValue={editing?.description}/></div><div className="space-y-2"><Label>Department head</Label><Select name="head_user_id" defaultValue={editing?.head_user_id??"none"}><SelectTrigger><SelectValue placeholder="Unassigned"/></SelectTrigger><SelectContent><SelectItem value="none">Unassigned</SelectItem>{staff.filter(person=>person.user_id).map(person=><SelectItem key={person.user_id!} value={person.user_id!}>{person.display_name}</SelectItem>)}</SelectContent></Select></div><DialogFooter><Button type="submit">Save department</Button></DialogFooter></form></DialogContent></Dialog>}</div>
+    {loading?<p className="text-sm text-muted-foreground">Loading departments…</p>:departments.length===0?<Card><CardContent className="flex flex-col items-center py-14 text-center"><Building2 className="mb-4 h-8 w-8 text-cyan-700"/><h2 className="font-semibold">No departments yet</h2><p className="mt-1 text-sm text-muted-foreground">Create departments to connect staff, tasks, and goals.</p></CardContent></Card>:<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{departments.map(department=>{const memberCount=staff.filter(person=>person.department_id===department.id).length;const departmentTasks=tasks.filter(task=>task.department_id===department.id);return <Card key={department.id}><CardHeader><div className="flex items-start justify-between gap-2"><div><CardTitle>{department.name}</CardTitle><CardDescription className="mt-1">{department.description||"No description"}</CardDescription></div><span className="rounded-full bg-emerald-100 px-2 py-1 text-xs text-emerald-800">Active</span></div></CardHeader><CardContent><div className="mb-4 flex gap-5 text-sm text-muted-foreground"><span className="flex items-center gap-1"><Users className="h-4 w-4"/>{memberCount} staff</span><span>{departmentTasks.filter(task=>task.status==="done").length}/{departmentTasks.length} tasks done</span></div>{canManage&&<div className="flex gap-2"><Button variant="outline" size="sm" onClick={()=>startEdit(department)}>Edit</Button><Button variant="ghost" size="sm" onClick={()=>void archive(department)}><Archive className="mr-2 h-4 w-4"/>Archive</Button></div>}</CardContent></Card>})}</div>}</div></Layout>
 }

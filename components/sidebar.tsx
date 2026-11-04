@@ -48,7 +48,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           "fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] border-r transition-all duration-300 ease-in-out",
           collapsed ? "w-16" : "w-64",
         )}
-        style={{ backgroundColor: "#7DA0CA" }}
+        style={{ backgroundColor: "#10243A" }}
       >
         <div className="flex h-full flex-col">
           {/* Toggle Button */}

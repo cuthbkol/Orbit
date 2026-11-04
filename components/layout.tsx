@@ -26,7 +26,7 @@ export function Layout({ children }: LayoutProps) {
       <div className="flex">
         <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
         <main className={cn("flex-1 transition-all duration-300 ease-in-out", sidebarCollapsed ? "ml-16" : "ml-64")}>
-          <div className="p-6" style={{ backgroundColor: "#F1F1FB" }}>
+          <div className="min-h-[calc(100vh-4rem)] p-6" style={{ backgroundColor: "#F5F8FB" }}>
             {children}
           </div>
         </main>
